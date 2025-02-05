@@ -126,7 +126,7 @@ def centerPattern(pattern, center, useWindow=True):
 	N = pattern.shape
 	f1 = np.arange(N[-2]) / N[-2]  # Frequency grid in direction 1
 	f2 = np.arange(N[-1]) / N[-1]  # Frequency grid in direction 2
-	sh = 1 - np.array(center)  # Amount to shift by
+	sh = -np.array(center)  # Amount to shift by
 	phf = np.exp(-2j * np.pi * sh[0] * f1[:, None]) * np.exp(-2j * np.pi * sh[1] * f2)  # Phase factor
 
 	win = np.outer(np.hanning(N[-2]), np.hanning(N[-1])) if useWindow else np.ones((N[-2], N[-1]))
@@ -633,8 +633,8 @@ def calculatePolarMapVectors(spotMaps):
 	spotMaps_updated['PolarV']=np.full_like(spotMaps['EWPC']['Q1map'], fill_value=np.nan)
 	for i in range(numSpots):
 		if i in spotMaps['EWIC']['fitIDmask']:
-			spotMaps_updated['PolarU'][i] = - spotMaps['EWIC']['Q1pos'][i] + spotMaps['EWIC']['Q1neg'][i]
-			spotMaps_updated['PolarV'][i]= - spotMaps['EWIC']['Q2neg'][i] + spotMaps['EWIC']['Q2pos'][i] ## origin of diffraction patter is on top left corner
+			spotMaps_updated['PolarV'][i] = - (spotMaps['EWIC']['Q1pos'][i] - spotMaps['EWIC']['Q1neg'][i]) ## origin of diffraction patter is on top left corner
+			spotMaps_updated['PolarU'][i] = spotMaps['EWIC']['Q2pos'][i] - spotMaps['EWIC']['Q2neg'][i] 
 	return spotMaps_updated 
 
 
@@ -817,7 +817,7 @@ def get_spotMaps(data4d_roi,wins,valid=None,tol=1e-4,method='Nelder-Mead', fitEW
 			
 			if fitEWIC and s in fitIDmask:
 				spotNeighborhood_EWIC = EWIC[spot_ROI_q1[0]:spot_ROI_q1[1]+1, spot_ROI_q2[0]:spot_ROI_q2[1]+1] * spotNeighborhood**ewpcPower #multiply by EWPC to suppress noise, and power can be modified
-						
+
 				# Find indices for the maximum and minimum.
 				maxidx_EWIC = np.unravel_index(np.argmax(spotNeighborhood_EWIC), spotNeighborhood_EWIC.shape)
 				minidx_EWIC = np.unravel_index(np.argmin(spotNeighborhood_EWIC), spotNeighborhood_EWIC.shape)
@@ -834,6 +834,7 @@ def get_spotMaps(data4d_roi,wins,valid=None,tol=1e-4,method='Nelder-Mead', fitEW
 
 
 				if EWICmethod == 'gaussian':
+					
 					def diff_gauss_model(params, X, Y):
 						"""
 						Difference-of-two-Gaussians model.
@@ -863,28 +864,32 @@ def get_spotMaps(data4d_roi,wins,valid=None,tol=1e-4,method='Nelder-Mead', fitEW
 					Apos_init = spotNeighborhood_EWIC[maxidx_EWIC]  # positive amplitude
 					Aneg_init = -spotNeighborhood_EWIC[minidx_EWIC]  # make positive (since model subtracts A2*Gaussian)
 
-					# Set sigma initial guesses to 1:
-					sigmapos_init = sigma
-					sigmaneg_init = sigma
+					if Apos_init < 0 or Aneg_init < 0:
+						# If the initial guesses are not valid, skip this spot.
+						fitted_params = [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan]
+					else:
+						# Set sigma initial guesses to 1:
+						sigmapos_init = sigma
+						sigmaneg_init = sigma
 
-					# Create the initial parameter vector:
-					initial_params = [q1_pos_guess, q2_pos_guess, q1_neg_guess, q2_neg_guess, sigmapos_init, sigmaneg_init, Apos_init, Aneg_init]
+						# Create the initial parameter vector:
+						initial_params = [q1_pos_guess, q2_pos_guess, q1_neg_guess, q2_neg_guess, sigmapos_init, sigmaneg_init, Apos_init, Aneg_init]
 
-					# Define bounds for each parameter.
-					lower_bounds = [q1_pos_guess - fitRange, q2_pos_guess - fitRange,
-									q1_neg_guess - fitRange, q2_neg_guess - fitRange,
-									sigmapos_init*0.5, sigmaneg_init*0.5,
-									Apos_init * 0.5, Aneg_init * 0.5]
-					upper_bounds = [q1_pos_guess + fitRange, q2_pos_guess + fitRange,
-									q1_neg_guess + fitRange, q2_neg_guess + fitRange,
-									sigmapos_init*2, sigmaneg_init*2,
-									Apos_init * 2, Aneg_init * 2]
+						# Define bounds for each parameter.
+						lower_bounds = [q1_pos_guess - fitRange, q2_pos_guess - fitRange,
+										q1_neg_guess - fitRange, q2_neg_guess - fitRange,
+										sigmapos_init*0.5, sigmaneg_init*0.5,
+										Apos_init * 0.5, Aneg_init * 0.5]
+						upper_bounds = [q1_pos_guess + fitRange, q2_pos_guess + fitRange,
+										q1_neg_guess + fitRange, q2_neg_guess + fitRange,
+										sigmapos_init*2, sigmaneg_init*2,
+										Apos_init * 2, Aneg_init * 2]
 
-					# Perform the least-squares fitting.
-					result = least_squares(residuals, x0=initial_params, bounds=(lower_bounds, upper_bounds),
-										args=(Q1_roi, Q2_roi, spotNeighborhood_EWIC))
+						# Perform the least-squares fitting.
+						result = least_squares(residuals, x0=initial_params, bounds=(lower_bounds, upper_bounds),
+											args=(Q1_roi, Q2_roi, spotNeighborhood_EWIC))
 
-					fitted_params = result.x
+						fitted_params = result.x
 
 				spotMaps['EWIC']['Q1pos'][s][j, k] = fitted_params[0]
 				spotMaps['EWIC']['Q2pos'][s][j, k] = fitted_params[1]
@@ -1384,7 +1389,7 @@ def browser_with_peak_selection(data4d, cmap='gray', half_width=8, log=True, fla
 		rois.append(real_roi);ax5.clear()
 		ax5.text(0.1,0.5,"Number of rois saved:"+str(len(rois)),horizontalalignment='center',verticalalignment='center')
 		ax5.axis('off')
-	
+	 
 	
 	add_selector= RectangleSelector(ax4, select_zoom, button=[1],
 									  useblit=True,minspanx=20, minspany=20,spancoords='pixels',interactive=True)    
@@ -1700,6 +1705,31 @@ def plot_scores_components(pca,scores,n1,n2,circular_mask,cmap='jet',figsize=(9,
 			k=k+1
 			if k==n_components:
 				break                        
+
+
+def rotate_uv(U, V, X):
+    """
+    Rotate U, V components back to the original coordinate system.
+    
+    Parameters:
+    U, V : array-like
+        Components in the rotated coordinate system.
+    X : float
+        Rotation angle in degrees (positive = clockwise, negative = counterclockwise).
+    
+    Returns:
+    U', V' : array-like
+        Components in the original coordinate system.
+    """
+    X_rad = np.radians(X)  # Convert degrees to radians
+    
+    # Rotation matrix (clockwise for positive X, counterclockwise for negative X)
+    cos_x, sin_x = np.cos(X_rad), np.sin(X_rad)
+    
+    U_prime = cos_x * U + sin_x * V
+    V_prime = -sin_x * U + cos_x * V
+    
+    return U_prime, V_prime
 
 
 def plot_kmeans_dict(kmeans_dict):
