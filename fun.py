@@ -1223,6 +1223,50 @@ def plotStrainEllipse(StrainComponents,figureSize=(8,3)):
 	plt.subplots_adjust(wspace=0.3, hspace=0.1)
 	
 
+def plotStrainEllipse(StrainComponents,figureSize=(8,3)):
+    
+    '''
+    Plots the major axis length, minor axis length and angle between major and minor axis of the strain ellipse
+
+    :Parameters:
+        strainComponents : dictionary
+            contains the 3 independent elements of the 2d strain tensor and the rotation angle.
+            For representation in a strain elipse form with pricipal axes, the eigenvectors and 
+            eigenvalues of the strain tensor is also calculated. The larger (smaller) eigenvalue 
+            represents the length of the major (minor) axis of the strain ellipse, and the "strainAngle" 
+            stores the angle between the major and minor axis. 
+        figureSize : tuple
+            
+    :Return: None.
+         
+    '''
+
+    color = 'viridis'
+    
+    plt.figure(figsize=figureSize)
+    plt.subplot(1,3,1)
+    img1=plt.imshow(StrainComponents["majAx"], cmap=color)
+    plt.colorbar(img1,shrink = 0.75)
+    plt.gca().set_axis_off()
+    plt.margins(0,0)
+    plt.title("Major axis", fontsize=12)
+    
+    plt.subplot(1,3,2)
+    plt.imshow(StrainComponents["minAx"], cmap=color)
+    plt.colorbar(shrink = 0.75)
+    plt.gca().set_axis_off()
+    plt.margins(0,0)
+    plt.title("Minor axis", fontsize=12)
+    
+    plt.subplot(1,3,3)
+    plt.imshow(StrainComponents["strainAngle"], cmap=color)
+    plt.colorbar(shrink = 0.75)
+    plt.gca().set_axis_off()
+    plt.margins(0,0)
+    plt.title("Axis angle", fontsize=12)
+    
+    plt.subplots_adjust(wspace=0.3, hspace=0.1)
+    
 def plotStrainTensor(StrainComponents, figureSize=(10,12), 
                     vrange_eps1=[-5,5], vrange_eps2=[-5,5], vrange_shear=[-5,5], 
                     vrange_theta=[-4,4], cmap='RdBu_r', hist_range=None, 
@@ -1309,12 +1353,9 @@ def plotStrainTensor(StrainComponents, figureSize=(10,12),
         ax_hist = divider.append_axes("bottom", size="100%", pad=0.1)
         
         # Calculate histogram data
-        if hist_range:
-            x_start, x_end, y_start, y_end = hist_range
-            hist_data = array[y_start:y_end+1, x_start:x_end+1]
-        else:
-            hist_data = array[a1:a2+1, b1:b2+1]
-        
+        x_start, x_end, y_start, y_end = hist_range
+        hist_data = array[ x_start:x_end+1, y_start:y_end+1]
+
         hist_data = hist_data[~np.isnan(hist_data)]
         counts, bins = np.histogram(hist_data, bins=100, range=(vmin, vmax))
         
@@ -1324,8 +1365,8 @@ def plotStrainTensor(StrainComponents, figureSize=(10,12),
         ax_hist.plot(bins[:-1] + np.diff(bins)/2, counts, color='b')
         ax_hist.set_xlim(vmin, vmax)
         ax_hist.set_yticks([])
-	ax_hist.text(0.95, 0.95, f"{np.mean(hist_data):.3f}" + r'$\pm$' + f"{np.std(hist_data):.3f}", 
-	 transform=ax_hist.transAxes, ha='right', va='top', fontsize=12,)
+        ax_hist.text(0.95, 0.95, f"{np.mean(hist_data):.3f}" + r'$\pm$' + f"{np.std(hist_data):.3f}", 
+                 transform=ax_hist.transAxes, ha='right', va='top', fontsize=12,)
         # Add colorbar
         cax = divider.append_axes("right", size="5%", pad=0.05)
         plt.colorbar(im, cax=cax, label='deg' if keys[i] == 'Theta' else '%')
@@ -1333,6 +1374,8 @@ def plotStrainTensor(StrainComponents, figureSize=(10,12),
     plt.tight_layout()
     plt.subplots_adjust(hspace=0.4, wspace=0.1)
     return fig  
+
+
 
 
 
