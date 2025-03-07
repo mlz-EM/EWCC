@@ -1324,7 +1324,8 @@ def plotStrainTensor(StrainComponents, figureSize=(10,12),
         ax_hist.plot(bins[:-1] + np.diff(bins)/2, counts, color='b')
         ax_hist.set_xlim(vmin, vmax)
         ax_hist.set_yticks([])
-        
+	ax_hist.text(0.95, 0.95, f"{np.mean(hist_data):.3f}" + r'$\pm$' + f"{np.std(hist_data):.3f}", 
+	 transform=ax_hist.transAxes, ha='right', va='top', fontsize=12,)
         # Add colorbar
         cax = divider.append_axes("right", size="5%", pad=0.05)
         plt.colorbar(im, cax=cax, label='deg' if keys[i] == 'Theta' else '%')
