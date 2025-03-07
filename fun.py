@@ -1261,7 +1261,7 @@ def plotStrainTensor(StrainComponents, figureSize=(10,12),
     
     # Set default histogram range if not specified
     if hist_range is None:
-        hist_range = [b1, b2, a1, a2]  # x_start, x_end, y_start, y_end
+        hist_range = [a1, a2, b1, b2, ]  # x_start, x_end, y_start, y_end
     
     fig, axes = plt.subplots(4, 1, figsize=(figureSize[0], figureSize[1]*1.5),
                          gridspec_kw={'height_ratios': [3,3,3,3]})  
@@ -1291,16 +1291,16 @@ def plotStrainTensor(StrainComponents, figureSize=(10,12),
         
         # Add range rectangles
         if hist_range:
-            rect = Rectangle((hist_range[0]-0.5, hist_range[2]-0.5), 
-                            hist_range[1]-hist_range[0], 
+            rect = Rectangle((hist_range[2]-0.5,hist_range[0]-0.5,), 
                             hist_range[3]-hist_range[2],
+                            hist_range[1]-hist_range[0], 
                             linewidth=2, edgecolor='r', facecolor='none')
             ax_main.add_patch(rect)
             
         if calib_range:
-            rect2 = Rectangle((calib_range[0]-0.5, calib_range[2]-0.5), 
-                            calib_range[1]-calib_range[0], 
+            rect2 = Rectangle((calib_range[2]-0.5, calib_range[0]-0.5, ), 
                             calib_range[3]-calib_range[2],
+                            calib_range[1]-calib_range[0], 
                             linewidth=2, edgecolor='g', facecolor='none')
             ax_main.add_patch(rect2)
         
@@ -1331,7 +1331,7 @@ def plotStrainTensor(StrainComponents, figureSize=(10,12),
     
     plt.tight_layout()
     plt.subplots_adjust(hspace=0.4, wspace=0.1)
-    return fig       
+    return fig  
 
 
 
