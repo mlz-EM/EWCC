@@ -17,7 +17,7 @@ from IPython.display import display
 import warnings
 import ipywidgets as widgets
 import pickle
-from matplotlib.patches import Rectangle as Rect
+from matplotlib.patches import Rectangle
 from matplotlib.widgets import RectangleSelector,Button
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -1223,66 +1223,115 @@ def plotStrainEllipse(StrainComponents,figureSize=(8,3)):
 	plt.subplots_adjust(wspace=0.3, hspace=0.1)
 	
 
-def plotStrainTensor(StrainComponents,figureSize=(8,8), vrange_eps = [-5,5], vrange_shear = [-5,5], vrange_theta = [-4,4], cmap='RdBu_r'):    
-	
-	'''
-	Plots the components of the strain tensor and the rotation angle
-
-	:Parameters:
-		strainComponents : dictionary
-			contains the 3 independent elements of the 2d strain tensor and the rotation angle.
-			For representation in a strain elipse form with pricipal axes, the eigenvectors and 
-			eigenvalues of the strain tensor is also calculated. The larger (smaller) eigenvalue 
-			represents the length of the major (minor) axis of the strain ellipse, and the "strainAngle" 
-			stores the angle between the major and minor axis. 
-		figureSize : tuple
-		vrange_eps : list
-			lower and upper limits for the strain map colorbar in percentage
-		vrange_theta : list
-			lower and upper limits for the rotation angle map colorbar in degrees
-			
-	:Return: None.
-		 
-	'''
-
-	titles=["$\epsilon_{11} (\%)$","$\epsilon_{22} (\%)$","$\epsilon_{12} (\%)$","$\Theta $"]
-	keys=["Eps11","Eps22","Eps12","Theta"]
-	mask=np.isnan(StrainComponents["Eps11"])
-	mask_pos=np.where(np.logical_not(mask))
-	a1=mask_pos[0].min()
-	a2=mask_pos[0].max()
-	b1=mask_pos[1].min()
-	b2=mask_pos[1].max()
-
-	fig,axes=plt.subplots(2,2,figsize=figureSize)
-	for i in range(4):
-		array=StrainComponents[keys[i]].copy()
-		if keys[i]!='Theta':
-			array = array * 100
-			if keys[i]!='Eps12':
-				vmin = vrange_eps[0]
-				vmax = vrange_eps[1]
-			else:
-				vmin = vrange_shear[0]
-				vmax = vrange_shear[1]
-		else:
-			vmin = vrange_theta[0]
-			vmax = vrange_theta[1]
-
-		ax_loc=np.unravel_index(i,(2,2))
-
-		array=array[a1:a2,b1:b2]
-		im=axes[ax_loc].imshow(array,cmap=cmap, vmin=vmin, vmax=vmax)
-		axes[ax_loc].set_xticks([])
-		axes[ax_loc].set_yticks([])        
-		divider = make_axes_locatable(axes[ax_loc])
-		cax = divider.append_axes("right", size="10%", pad=0.05)
-		axes[ax_loc].set_title(titles[i])
-		if keys[i]=='Theta':
-			plt.colorbar(im,cax=cax,label='deg')
-		else:
-			plt.colorbar(im,cax=cax)
-	plt.subplots_adjust(wspace=0.1, hspace=0.15)        
+def plotStrainTensor(StrainComponents, figureSize=(10,12), 
+                    vrange_eps1=[-5,5], vrange_eps2=[-5,5], vrange_shear=[-5,5], 
+                    vrange_theta=[-4,4], cmap='RdBu_r', hist_range=None, 
+                    calib_range=None):
+    '''
+    Plots the components of the strain tensor with histograms and range indicators
+    
+    :Parameters:
+        StrainComponents : dictionary
+            Contains the 3 independent elements of the 2D strain tensor and rotation angle
+        figureSize : tuple
+            Size of the figure
+        vrange_eps : list of lists
+            Color ranges for Eps11 and Eps22 in percentage [[Eps11_min, Eps11_max], [Eps22_min, Eps22_max]]
+        vrange_shear : list
+            Color range for shear component in percentage
+        vrange_theta : list
+            Color range for rotation angle in degrees
+        hist_range : list [xs, xe, ys, ye]
+            Range for histogram calculation and red rectangle display
+        hist_range2 : list [xs1, xe1, ys1, ye1]
+            Additional range for green rectangle display
+    '''
+    
+    titles = ["$\epsilon_{11} (\%)$", "$\epsilon_{22} (\%)$", 
+             "$\epsilon_{12} (\%)$", "$\Theta $"]
+    keys = ["Eps11", "Eps22", "Eps12", "Theta"]
+    
+    # Create mask from Eps11 NaNs
+    mask = np.isnan(StrainComponents["Eps11"])
+    mask_pos = np.where(np.logical_not(mask))
+    
+    # Determine default plot bounds
+    a1, a2 = mask_pos[0].min(), mask_pos[0].max()
+    b1, b2 = mask_pos[1].min(), mask_pos[1].max()
+    
+    # Set default histogram range if not specified
+    if hist_range is None:
+        hist_range = [b1, b2, a1, a2]  # x_start, x_end, y_start, y_end
+    
+    fig, axes = plt.subplots(4, 1, figsize=(figureSize[0], figureSize[1]*1.5),
+                         gridspec_kw={'height_ratios': [3,3,3,3]})  
+    
+    for i in range(4):
+        # Main plot axis
+        ax_main = axes[i]
+        array = StrainComponents[keys[i]].copy()
+        
+        # Apply scaling and set color ranges
+        if keys[i] != 'Theta':
+            array = array * 100
+            if keys[i] == 'Eps11':
+                vmin, vmax = vrange_eps1
+            elif keys[i] == 'Eps22':
+                vmin, vmax = vrange_eps2
+            else:
+                vmin, vmax = vrange_shear
+        else:
+            vmin, vmax = vrange_theta
+        
+        # Plot main image
+        im = ax_main.imshow(array, cmap=cmap, vmin=vmin, vmax=vmax)
+        ax_main.set_title(titles[i])
+        ax_main.set_xticks([])
+        ax_main.set_yticks([])
+        
+        # Add range rectangles
+        if hist_range:
+            rect = Rectangle((hist_range[0]-0.5, hist_range[2]-0.5), 
+                            hist_range[1]-hist_range[0], 
+                            hist_range[3]-hist_range[2],
+                            linewidth=2, edgecolor='r', facecolor='none')
+            ax_main.add_patch(rect)
+            
+        if calib_range:
+            rect2 = Rectangle((calib_range[0]-0.5, calib_range[2]-0.5), 
+                            calib_range[1]-calib_range[0], 
+                            calib_range[3]-calib_range[2],
+                            linewidth=2, edgecolor='g', facecolor='none')
+            ax_main.add_patch(rect2)
+        
+        # Create histogram axis
+        divider = make_axes_locatable(ax_main)
+        ax_hist = divider.append_axes("bottom", size="100%", pad=0.1)
+        
+        # Calculate histogram data
+        if hist_range:
+            x_start, x_end, y_start, y_end = hist_range
+            hist_data = array[y_start:y_end+1, x_start:x_end+1]
+        else:
+            hist_data = array[a1:a2+1, b1:b2+1]
+        
+        hist_data = hist_data[~np.isnan(hist_data)]
+        counts, bins = np.histogram(hist_data, bins=100, range=(vmin, vmax))
+        
+        # Plot histogram
+        ax_hist.bar(bins[:-1], counts, width=np.diff(bins), 
+                   color='gray', edgecolor='k')
+        ax_hist.plot(bins[:-1] + np.diff(bins)/2, counts, color='b')
+        ax_hist.set_xlim(vmin, vmax)
+        ax_hist.set_yticks([])
+        
+        # Add colorbar
+        cax = divider.append_axes("right", size="5%", pad=0.05)
+        plt.colorbar(im, cax=cax, label='deg' if keys[i] == 'Theta' else '%')
+    
+    plt.tight_layout()
+    plt.subplots_adjust(hspace=0.4, wspace=0.1)
+    return fig       
 
 
 
